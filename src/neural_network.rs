@@ -48,10 +48,38 @@ impl Default for NeuralNetworkOptions {
     }
 }
 
+pub type Signal = f64;
+
+pub type InputData = Vec<Signal>;
+
+pub type OutputData = Vec<Signal>;
+
+pub struct TrainingSample {
+    pub input: InputData,
+    pub output: OutputData,
+}
+
+impl TrainingSample {
+    pub fn new(input: InputData, output: OutputData) -> TrainingSample {
+        TrainingSample {
+            input,
+            output,
+        }
+    }
+}
+
+pub type TrainingData = Vec<TrainingSample>;
+
 impl NeuralNetwork {
     pub fn new(options: NeuralNetworkOptions) -> NeuralNetwork {
         NeuralNetwork {
             options,
         }
+    }
+    pub fn train(&self, training_data: TrainingData) {
+
+    }
+    pub fn run(&self, input_data: InputData) -> OutputData {
+        vec!(0.0)
     }
 }
