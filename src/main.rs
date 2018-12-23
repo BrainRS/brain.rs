@@ -3,7 +3,10 @@ extern crate brain;
 use brain::neural_network::{NeuralNetwork, NeuralNetworkOptions, TrainingSample};
 
 fn main() {
-    let net_options = NeuralNetworkOptions { ..Default::default() };
+    let net_options = NeuralNetworkOptions {
+        hidden_layers: Some(vec!(3)),
+        ..Default::default()
+    };
     let net = NeuralNetwork::new(net_options);
     let training_data = vec!(
         TrainingSample::new(vec!(0.0, 0.0), vec!(0.0)),
