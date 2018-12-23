@@ -18,7 +18,11 @@ mod tests {
     use super::*;
     #[test]
     fn it_works() {
-        let _nn = neural_network::NeuralNetwork::new();
+        let options = neural_network::NeuralNetworkOptions {
+            iterations: 10,
+            ..Default::default()
+        };
+        let _nn = neural_network::NeuralNetwork::new(options);
         assert_eq!(2 + 2, 4);
     }
 }
