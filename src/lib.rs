@@ -18,6 +18,7 @@ mod tests {
     use super::*;
     #[test]
     fn it_works() {
+        let _nn = neural_network::NeuralNetwork::new();
         assert_eq!(2 + 2, 4);
     }
 }
