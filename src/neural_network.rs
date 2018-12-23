@@ -1,7 +1,38 @@
 use std::time::Duration;
 
+pub type Signal = f64;
+
+pub type InputData = Vec<Signal>;
+
+pub type OutputData = Vec<Signal>;
+
+pub struct TrainingSample {
+    input: InputData,
+    output: OutputData,
+}
+
+impl TrainingSample {
+    pub fn new(input: InputData, output: OutputData) -> TrainingSample {
+        TrainingSample {
+            input,
+            output,
+        }
+    }
+}
+
+pub type TrainingData = Vec<TrainingSample>;
+
+pub struct Neuron {
+    weights: Vec<Signal>, // bias is on position 0
+}
+
+pub struct Layer {
+    neurons: Vec<Neuron>,
+}
+
 pub struct NeuralNetwork {
-    pub options: NeuralNetworkOptions,
+    options: NeuralNetworkOptions,
+    layers: Option<Vec<Layer>>,
 }
 
 pub struct NeuralNetworkOptions {
@@ -48,37 +79,24 @@ impl Default for NeuralNetworkOptions {
     }
 }
 
-pub type Signal = f64;
-
-pub type InputData = Vec<Signal>;
-
-pub type OutputData = Vec<Signal>;
-
-pub struct TrainingSample {
-    input: InputData,
-    output: OutputData,
-}
-
-impl TrainingSample {
-    pub fn new(input: InputData, output: OutputData) -> TrainingSample {
-        TrainingSample {
-            input,
-            output,
-        }
-    }
-}
-
-pub type TrainingData = Vec<TrainingSample>;
-
 impl NeuralNetwork {
     pub fn new(options: NeuralNetworkOptions) -> NeuralNetwork {
-        NeuralNetwork {
+        let mut neural_network = NeuralNetwork {
             options,
-        }
+            layers: None, 
+        };
+        neural_network.initialize();
+        neural_network
     }
+
+    fn initialize(&mut self) {
+        self.layers = Some(Vec::new());
+    }
+
     pub fn train(&self, training_data: TrainingData) {
 
     }
+
     pub fn run(&self, input_data: InputData) -> OutputData {
         vec!(0.0)
     }
