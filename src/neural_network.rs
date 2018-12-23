@@ -55,8 +55,8 @@ pub type InputData = Vec<Signal>;
 pub type OutputData = Vec<Signal>;
 
 pub struct TrainingSample {
-    pub input: InputData,
-    pub output: OutputData,
+    input: InputData,
+    output: OutputData,
 }
 
 impl TrainingSample {
