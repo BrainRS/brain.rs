@@ -1,4 +1,13 @@
+use rand::prelude::*;
 use std::time::Duration;
+
+fn clone_vector<T> (oldVector: Vec<T>) -> Vec<T> {
+    let mut newVector = Vec::<T>::new();
+    for elem in oldVector {
+        newVector.push(elem);
+    }
+    newVector
+}
 
 pub type Signal = f64;
 pub type InputData = Vec<Signal>;
@@ -19,17 +28,51 @@ impl TrainingSample {
 pub type TrainingData = Vec<TrainingSample>;
 
 pub struct Neuron {
-    weights: Vec<Signal>, // bias is on position 0
+    bias: Signal,
+    weights: Vec<Signal>,
+    output: Signal,
+    error: Signal,
+}
+
+impl Neuron {
+    fn new(size: usize) -> Neuron {
+        let mut rng = rand::thread_rng();
+
+        Neuron {
+            bias: rng.gen(),
+            weights: (0..size).map(|_| rng.gen()).collect(),
+            output: 0.0,
+            error: 0.0,
+        }
+    }
 }
 
 pub struct Layer {
-    // neurons: Vec<Neuron>,
+    neurons: Vec<Neuron>,
+}
+
+impl Layer {
+    fn new(size: usize) -> Layer {
+        let mut neurons = vec!();
+        for _i in 0..size {
+            neurons.push(Neuron::new(size));
+        }
+        Layer {
+            neurons,
+        }
+    }
+    fn get_outputs(&self) -> OutputData {
+        let mut outputs = vec!();
+        for neuron in &self.neurons {
+            outputs.push(neuron.output);
+        }
+        outputs
+    }
 }
 
 pub struct NeuralNetwork {
     options: NeuralNetworkOptions,
     layers: Vec<Layer>,
-    outputs: Vec<OutputData>,
 }
 
 pub struct NeuralNetworkOptions {
@@ -78,108 +121,108 @@ impl Default for NeuralNetworkOptions {
 
 impl NeuralNetwork {
     pub fn new(options: NeuralNetworkOptions) -> NeuralNetwork {
-        let layers = NeuralNetwork::build_layers(&options);
-        NeuralNetwork {
+        let mut neural_network = NeuralNetwork {
             options,
-            layers,
-        }
+            layers: vec!(),
+        };
+        neural_network.initialize();
+        neural_network
     }
 
-    fn build_layers(options: &NeuralNetworkOptions) -> Vec<Layer> {
-        let hidden_layers_count = match options.hidden_layers {
+    fn initialize(&mut self) {
+        let hidden_layers_count = match self.options.hidden_layers {
             Some(cnt) => cnt,
-            None => 3,
+            None => 0,
         };
-        let mut layers = Vec::new();
         // First add the input layer
-        let input_layer = Layer {};
-        layers.push(input_layer);
+        let input_layer = Layer::new(2);
+        self.layers.push(input_layer);
         // Add the hidden layers
-        for i in 0..hidden_layers_count {
-            let hidden_layer = Layer {};
-            layers.push(hidden_layer);
+        for _i in 0..hidden_layers_count {
+            let hidden_layer = Layer::new(2);
+            self.layers.push(hidden_layer);
         }
         // Lastly add the output layer
-        let output_layer = Layer {};
-        layers.push(output_layer);
-        layers
+        let output_layer = Layer::new(2);
+        self.layers.push(output_layer);
     }
 
-    pub fn train(&self, training_data: TrainingData) {
+    pub fn train(&mut self, training_data: TrainingData) {
         for training_sample in training_data {
             self.train_sample(training_sample);
         }
     }
 
-    fn train_sample(&self, training_sample: TrainingSample) -> Signal {
+    fn train_sample(&mut self, training_sample: TrainingSample) -> Signal {
         self.run_sample(training_sample.input);
         self.calculate_deltas(training_sample.output);
         self.adjust_weights();
         0.0
     }
 
-    fn run_sample(&self, input: InputData) -> OutputData {
+    fn run_sample(&mut self, input: InputData) -> OutputData {
         match &self.options.activation[..] {
-            "sigmoid" => self.run_sample_sigmoid(input),
-            "relu" => self.run_sample_relu(input),
-            "leaky-relu" => self.run_sample_leaky_relu(input),
-            "tanh" => self.run_sample_tanh(input),
+            "sigmoid" => self.run_sample_with_activation(input, |sum: Signal| -> Signal {
+                1.0 / (1.0 + (-sum).exp())
+            }),
+            "relu" => self.run_sample_with_activation(input, |sum: Signal| -> Signal {
+                if sum < 0.0 {
+                    0.0
+                } else {
+                    sum
+                }
+            }),
+            "leaky-relu" => {
+                let alpha = self.options.leaky_relu_alpha;
+                self.run_sample_with_activation(input, |sum: Signal| -> Signal {
+                    if sum < 0.0 {
+                        0.0
+                    } else {
+                        alpha * sum
+                    }
+                })
+            },
+            "tanh" => self.run_sample_with_activation(input, |sum: Signal| -> Signal {
+                (-sum).tanh()
+            }),
             _ => panic!("run_sample called with unknown activation '{}'", self.options.activation),
         }
     }
 
-    fn run_sample_with_activation(&mut self, input: InputData, activationFunction: impl FnMut(Signal)->Signal) -> OutputData {
-        self.outputs[0] = input;  // set output state of input layer
-
-        let mut output = vec!();
-        for layer in 1..self.outputLayer {
-            for node in 0..self.sizes[layer] {
-                let weights = self.weights[layer][node];
-
-                let sum = self.biases[layer][node];
-                for k in 0..weights.length {
-                    sum += weights[k] * input[k];
-                }
-                //sigmoid
-                self.outputs[layer][node] = activationFunction(sum);
+    fn run_sample_with_activation(&mut self, input: InputData, activation_function: impl Fn(Signal)->Signal) -> OutputData {
+        let layer_count = self.layers.len();
+        {
+            let input_layer = &mut self.layers[0];
+            println!("Layer: {} Input: {}", input_layer.neurons.len(), input.len());
+            for i in 0..input_layer.neurons.len() {
+                let neurons = &mut input_layer.neurons;
+                let neuron = &mut neurons[i];
+                neuron.output = input[i];
             }
-            input = self.outputs[layer];
-            output = input;
+        }
+        let mut intermediate_input = clone_vector(input);
+        for layer in &mut self.layers {
+            let neurons = &mut layer.neurons;
+            for neuron in neurons {
+                let weights = &neuron.weights;
+                let mut sum = neuron.bias;
+                for k in 0..weights.len() {
+                    sum += weights[k] * intermediate_input[k];
+                }
+                neuron.output = activation_function(sum);
+            }
+            intermediate_input = clone_vector(layer.get_outputs());
+        }
+        let mut output = vec!();
+        {
+            let output_layer = &mut self.layers[layer_count-1];
+            for i in 0..output_layer.neurons.len() {
+                let neurons = &mut output_layer.neurons;
+                let neuron = &mut neurons[i];
+                output.push(neuron.output);
+            }
         }
         output
-    }
-
-    fn run_sample_sigmoid(&mut self, input: InputData) -> OutputData {
-        self.run_sample_with_activation(input, |sum: Signal| -> Signal {
-            1.0 / (1.0 + (-sum).exp())
-        })
-    }
-
-    fn run_sample_relu(&self, input: InputData) -> OutputData {
-        self.run_sample_with_activation(input, |sum: Signal| -> Signal {
-            if sum < 0.0 {
-                0.0
-            } else {
-                sum
-            }
-        })
-    }
-
-    fn run_sample_leaky_relu(&self, input: InputData) -> OutputData {
-        let alpha = self.options.leaky_relu_alpha;
-        self.run_sample_with_activation(input, |sum: Signal| -> Signal {
-            if sum < 0.0 {
-                0.0
-            } else {
-                alpha * sum
-            }
-        })
-    }
-
-    fn run_sample_tanh(&self, input: InputData) -> OutputData {
-        self.run_sample_with_activation(input, |sum: Signal| -> Signal {
-            (-sum).tanh()
-        })
     }
 
     fn calculate_deltas(&self, output: OutputData) {
@@ -225,7 +268,7 @@ impl NeuralNetwork {
         // }
     }
 
-    pub fn run(&self, input_data: InputData) -> OutputData {
+    pub fn run(&mut self, input_data: InputData) -> OutputData {
         self.run_sample(input_data);
         vec!(0.0)
     }
