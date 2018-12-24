@@ -4,7 +4,7 @@ use brain::neural_network::{NeuralNetwork, NeuralNetworkOptions, TrainingSample}
 
 fn main() {
     let net_options = NeuralNetworkOptions {
-        hidden_layers: Some(vec!(3)),
+        hidden_layers: Some(5),
         ..Default::default()
     };
     let net = NeuralNetwork::new(net_options);
