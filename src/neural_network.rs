@@ -319,14 +319,15 @@ impl NeuralNetwork {
         for layer_index in 1..self.layers.len() {
             let incoming = self.layers[layer_index - 1].get_outputs();
             for neuron_index in 0..self.layers[layer_index].neurons.len() {
-                let delta = self.layers[layer_index].neurons[neuron_index].delta;
+                let neuron = &mut self.layers[layer_index].neurons[neuron_index];
+                let delta = neuron.delta;
                 for k in 0..incoming.len() {
-                    let mut change = self.layers[layer_index].neurons[neuron_index].changes[k];
+                    let mut change = neuron.changes[k];
                     change = (self.options.learning_rate * delta * incoming[k]) + (self.options.momentum * change);
-                    self.layers[layer_index].neurons[neuron_index].changes[k] = change;
-                    self.layers[layer_index].neurons[neuron_index].weights[k] += change;
+                    neuron.changes[k] = change;
+                    neuron.weights[k] += change;
                 }
-                self.layers[layer_index].neurons[neuron_index].delta += self.options.learning_rate * delta;
+                neuron.delta += self.options.learning_rate * delta;
             }
         }
     }
