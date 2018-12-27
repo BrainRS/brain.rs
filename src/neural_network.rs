@@ -1,12 +1,12 @@
 use rand::prelude::*;
 use std::time::Duration;
 
-fn clone_vector<T> (oldVector: Vec<T>) -> Vec<T> {
-    let mut newVector = Vec::<T>::new();
-    for elem in oldVector {
-        newVector.push(elem);
+fn clone_vector<T> (old_vector: Vec<T>) -> Vec<T> {
+    let mut new_vector = Vec::<T>::new();
+    for elem in old_vector {
+        new_vector.push(elem);
     }
-    newVector
+    new_vector
 }
 
 pub type Signal = f64;
@@ -224,7 +224,6 @@ impl NeuralNetwork {
             }
         }
         let mut intermediate_input = clone_vector(input);
-        println!("intermediate_input: {:?}", intermediate_input);
         let mut first_layer_skipped = false;
         for layer in &mut self.layers {
             if !first_layer_skipped {
