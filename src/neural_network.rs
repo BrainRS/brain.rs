@@ -245,10 +245,10 @@ impl NeuralNetwork {
         }
         let mut output = vec!();
         {
-            let output_layer = &mut self.layers[layer_count-1];
+            let output_layer = &self.layers[layer_count-1];
             for i in 0..output_layer.neurons.len() {
-                let neurons = &mut output_layer.neurons;
-                let neuron = &mut neurons[i];
+                let neurons = &output_layer.neurons;
+                let neuron = &neurons[i];
                 output.push(neuron.output);
             }
         }
