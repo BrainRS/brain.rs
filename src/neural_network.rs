@@ -230,12 +230,8 @@ impl NeuralNetwork {
             }
         }
         let mut intermediate_input = clone_vector(input);
-        let mut first_layer_skipped = false;
-        for layer in &mut self.layers {
-            if !first_layer_skipped {
-                first_layer_skipped = true;
-                continue;
-            }
+        for layer_index in 1..self.layers.len() {
+            let layer = &mut self.layers[layer_index];
             let neurons = &mut layer.neurons;
             for neuron in neurons {
                 let weights = &neuron.weights;
