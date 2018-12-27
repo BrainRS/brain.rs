@@ -52,10 +52,10 @@ pub struct Layer {
 }
 
 impl Layer {
-    fn new(size: usize) -> Layer {
+    fn new(neuron_count: usize, input_count: usize) -> Layer {
         let mut neurons = vec!();
-        for _i in 0..size {
-            neurons.push(Neuron::new(size));
+        for _i in 0..neuron_count {
+            neurons.push(Neuron::new(input_count));
         }
         Layer {
             neurons,
@@ -79,7 +79,8 @@ pub struct NeuralNetworkOptions {
     pub leaky_relu_alpha: f64,
     pub binary_thresh: f64,
     pub input_layer_neuron_count: Option<usize>,
-    pub network_layer_neuron_count: Option<usize>,
+    pub hidden_layers_neuron_count: Option<usize>,
+    pub output_layer_neuron_count: Option<usize>,
     pub hidden_layers: Option<usize>,
     pub activation: String,
     pub iterations: u32,
@@ -103,7 +104,8 @@ impl Default for NeuralNetworkOptions {
             leaky_relu_alpha: 0.01,
             binary_thresh: 0.5,
             input_layer_neuron_count: None,
-            network_layer_neuron_count: None,
+            hidden_layers_neuron_count: None,
+            output_layer_neuron_count: None,
             hidden_layers: None,
             activation: String::from("sigmoid"),
             iterations: 20000,
@@ -142,20 +144,27 @@ impl NeuralNetwork {
             Some(cnt) => cnt,
             None => 0,
         };
-        let network_layer_neuron_count = match self.options.network_layer_neuron_count {
+        let hidden_layers_neuron_count = match self.options.hidden_layers_neuron_count {
+            Some(cnt) => cnt,
+            None => 0,
+        };
+        let output_layer_neuron_count = match self.options.output_layer_neuron_count {
             Some(cnt) => cnt,
             None => 0,
         };
         // First add the input layer
-        let input_layer = Layer::new(input_layer_neuron_count);
+        let input_layer = Layer::new(input_layer_neuron_count, 0);
         self.layers.push(input_layer);
+        // Initialize input_count
+        let mut input_count = input_layer_neuron_count;
         // Add the hidden layers
         for _i in 0..hidden_layers {
-            let hidden_layer = Layer::new(network_layer_neuron_count);
+            let hidden_layer = Layer::new(hidden_layers_neuron_count, input_count);
+            input_count = hidden_layers_neuron_count;
             self.layers.push(hidden_layer);
         }
         // Lastly add the output layer
-        let output_layer = Layer::new(1);
+        let output_layer = Layer::new(output_layer_neuron_count, input_count);
         self.layers.push(output_layer);
     }
 
@@ -205,7 +214,9 @@ impl NeuralNetwork {
         let layer_count = self.layers.len();
         {
             let input_layer = &mut self.layers[0];
-            println!("Layer: {} Input: {}", input_layer.neurons.len(), input.len());
+            if input_layer.neurons.len() != input.len() {
+                panic!("Input neurons and input values contain different number of elements ({} vs {})", input_layer.neurons.len(), input.len());
+            }
             for i in 0..input_layer.neurons.len() {
                 let neurons = &mut input_layer.neurons;
                 let neuron = &mut neurons[i];
@@ -214,14 +225,16 @@ impl NeuralNetwork {
         }
         let mut intermediate_input = clone_vector(input);
         println!("intermediate_input: {:?}", intermediate_input);
+        let mut first_layer_skipped = false;
         for layer in &mut self.layers {
+            if !first_layer_skipped {
+                first_layer_skipped = true;
+                continue;
+            }
             let neurons = &mut layer.neurons;
             for neuron in neurons {
                 let weights = &neuron.weights;
                 let mut sum = neuron.bias;
-                if intermediate_input.len() != weights.len() {
-                    panic!("Inputs and weights contain different number of elements ({} vs {})", intermediate_input.len(), weights.len());
-                }
                 for k in 0..weights.len() {
                     sum += weights[k] * intermediate_input[k];
                 }
