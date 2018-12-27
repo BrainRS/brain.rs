@@ -4,6 +4,8 @@ use brain::neural_network::{NeuralNetwork, NeuralNetworkOptions, TrainingSample}
 
 fn main() {
     let net_options = NeuralNetworkOptions {
+        input_layer_neuron_count: Some(2),
+        network_layer_neuron_count: Some(4),
         hidden_layers: Some(5),
         ..Default::default()
     };

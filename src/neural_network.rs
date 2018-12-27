@@ -78,7 +78,9 @@ pub struct NeuralNetwork {
 pub struct NeuralNetworkOptions {
     pub leaky_relu_alpha: f64,
     pub binary_thresh: f64,
-    pub hidden_layers: Option<u32>,
+    pub input_layer_neuron_count: Option<usize>,
+    pub network_layer_neuron_count: Option<usize>,
+    pub hidden_layers: Option<usize>,
     pub activation: String,
     pub iterations: u32,
     pub error_thresh: f64,
@@ -100,6 +102,8 @@ impl Default for NeuralNetworkOptions {
         NeuralNetworkOptions {
             leaky_relu_alpha: 0.01,
             binary_thresh: 0.5,
+            input_layer_neuron_count: None,
+            network_layer_neuron_count: None,
             hidden_layers: None,
             activation: String::from("sigmoid"),
             iterations: 20000,
@@ -130,20 +134,28 @@ impl NeuralNetwork {
     }
 
     fn initialize(&mut self) {
-        let hidden_layers_count = match self.options.hidden_layers {
+        let hidden_layers = match self.options.hidden_layers {
+            Some(cnt) => cnt,
+            None => 0,
+        };
+        let input_layer_neuron_count = match self.options.input_layer_neuron_count {
+            Some(cnt) => cnt,
+            None => 0,
+        };
+        let network_layer_neuron_count = match self.options.network_layer_neuron_count {
             Some(cnt) => cnt,
             None => 0,
         };
         // First add the input layer
-        let input_layer = Layer::new(2);
+        let input_layer = Layer::new(input_layer_neuron_count);
         self.layers.push(input_layer);
         // Add the hidden layers
-        for _i in 0..hidden_layers_count {
-            let hidden_layer = Layer::new(2);
+        for _i in 0..hidden_layers {
+            let hidden_layer = Layer::new(network_layer_neuron_count);
             self.layers.push(hidden_layer);
         }
         // Lastly add the output layer
-        let output_layer = Layer::new(2);
+        let output_layer = Layer::new(1);
         self.layers.push(output_layer);
     }
 
@@ -201,11 +213,15 @@ impl NeuralNetwork {
             }
         }
         let mut intermediate_input = clone_vector(input);
+        println!("intermediate_input: {:?}", intermediate_input);
         for layer in &mut self.layers {
             let neurons = &mut layer.neurons;
             for neuron in neurons {
                 let weights = &neuron.weights;
                 let mut sum = neuron.bias;
+                if intermediate_input.len() != weights.len() {
+                    panic!("Inputs and weights contain different number of elements ({} vs {})", intermediate_input.len(), weights.len());
+                }
                 for k in 0..weights.len() {
                     sum += weights[k] * intermediate_input[k];
                 }
