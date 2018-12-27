@@ -1,11 +1,11 @@
 use rand::prelude::*;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
-fn clone_vector<T> (source_vector: Vec<T>) -> Vec<T> {
+fn clone_vector<T> (source_vector: &Vec<T>) -> Vec<T> 
+    where T:Clone
+{
     let mut copied_vector = Vec::<T>::new();
-    for elem in source_vector {
-        copied_vector.push(elem);
-    }
+    copied_vector.extend(source_vector.iter().cloned());
     copied_vector
 }
 
@@ -82,9 +82,24 @@ impl Layer {
     }
 }
 
+pub struct TrainingStatus {
+    iterations: u32,
+    error: Signal,
+}
+
+impl TrainingStatus {
+    pub fn new() -> TrainingStatus {
+        TrainingStatus {
+            iterations: 0,
+            error: 0.0,
+        }
+    }
+}
+
 pub struct NeuralNetwork {
     options: NeuralNetworkOptions,
     layers: Vec<Layer>,
+    error_check_interval: u32,
 }
 
 pub enum NeuralActivation {
@@ -108,7 +123,7 @@ pub struct NeuralNetworkOptions {
     pub log_period: u32,
     pub learning_rate: f64,
     pub momentum: f64,
-    pub callback: Option<Box<Fn()>>,
+    pub callback: Option<Box<Fn(&TrainingStatus)>>,
     pub callback_period: u32,
     pub timeout: Option<Duration>,
     pub praxis: Option<String>,
@@ -149,6 +164,7 @@ impl NeuralNetwork {
         let mut neural_network = NeuralNetwork {
             options,
             layers: vec!(),
+            error_check_interval: 1,
         };
         neural_network.initialize();
         neural_network
@@ -187,20 +203,62 @@ impl NeuralNetwork {
         self.layers.push(output_layer);
     }
 
-    pub fn train(&mut self, training_data: TrainingData) {
+    pub fn train(&mut self, training_data: &TrainingData) -> TrainingStatus {
+        let mut status = TrainingStatus::new();
+        let end_time = match self.options.timeout {
+            Some(duration) => SystemTime::now() + duration,
+            None => SystemTime::now() + Duration::from_secs(86400),
+        };
+        while self.training_tick(training_data, &mut status, end_time) {}
+        status
+    }
+
+    fn calculate_training_error_for_single_output(&mut self, training_data: &TrainingData) -> Signal {
+        let mut sum = 0.0;
+        for training_sample in training_data {
+            sum += self.train_sample(training_sample)[0];
+        }
+        sum / (training_data.len() as f64)
+    }
+
+    fn training_tick(&mut self, training_data: &TrainingData, status: &mut TrainingStatus, end_time: SystemTime) -> bool {
+        if status.iterations >= self.options.iterations || status.error <= self.options.error_thresh || SystemTime::now() >= end_time {
+            return false;
+        }
+        status.iterations += 1;
+        if status.iterations % self.options.log_period == 0 {
+            status.error = self.calculate_training_error_for_single_output(training_data);
+            println!("iterations: {}, training error: {}", status.iterations, status.error);
+        } else {
+            if status.iterations % self.error_check_interval == 0 {
+                status.error = self.calculate_training_error_for_single_output(training_data);
+            } else {
+                self.train_samples(training_data);
+            }
+        }
+        if status.iterations % self.options.callback_period == 0 {
+            match &self.options.callback {
+                Some(callback) => callback(status),
+                None => (),
+            }
+        }
+        return true;
+    }
+
+    pub fn train_samples(&mut self, training_data: &TrainingData) {
         for training_sample in training_data {
             self.train_sample(training_sample);
         }
     }
 
-    fn train_sample(&mut self, training_sample: TrainingSample) -> OutputData {
-        self.run_sample(training_sample.input);
-        self.calculate_deltas(training_sample.output);
+    fn train_sample(&mut self, training_sample: &TrainingSample) -> OutputData {
+        self.run_sample(&training_sample.input);
+        self.calculate_deltas(&training_sample.output);
         self.adjust_weights();
         self.layers[self.layers.len()-1].get_outputs()
     }
 
-    fn run_sample(&mut self, input: InputData) -> OutputData {
+    fn run_sample(&mut self, input: &InputData) -> OutputData {
         match self.options.activation {
             NeuralActivation::Sigmoid => self.run_sample_with_activation(input, |sum: Signal| -> Signal {
                 1.0 / (1.0 + (-sum).exp())
@@ -228,7 +286,7 @@ impl NeuralNetwork {
         }
     }
 
-    fn run_sample_with_activation(&mut self, input: InputData, activation_function: impl Fn(Signal)->Signal) -> OutputData {
+    fn run_sample_with_activation(&mut self, input: &InputData, activation_function: impl Fn(Signal)->Signal) -> OutputData {
         let layer_count = self.layers.len();
         {
             let input_layer = &mut self.layers[0];
@@ -253,7 +311,7 @@ impl NeuralNetwork {
                 }
                 neuron.output = activation_function(sum);
             }
-            intermediate_input = clone_vector(layer.get_outputs());
+            intermediate_input = clone_vector(&layer.get_outputs());
         }
         let mut output = vec!();
         {
@@ -267,7 +325,7 @@ impl NeuralNetwork {
         output
     }
 
-    fn calculate_deltas(&mut self, target: OutputData) {
+    fn calculate_deltas(&mut self, target: &OutputData) {
         match self.options.activation {
             NeuralActivation::Sigmoid => self.calculate_deltas_with_backward(target, |output: Signal, error: Signal| -> Signal {
                 error * output * (1.0 - output)
@@ -295,7 +353,7 @@ impl NeuralNetwork {
         }
     }
 
-    fn calculate_deltas_with_backward(&mut self, target: OutputData, backward_function: impl Fn(Signal, Signal)->Signal) {
+    fn calculate_deltas_with_backward(&mut self, target: &OutputData, backward_function: impl Fn(Signal, Signal)->Signal) {
         for layer_index in (1..self.layers.len()).rev() {
             for neuron_index in 0..self.layers[layer_index].neurons.len() {
                 let output = self.layers[layer_index].neurons[neuron_index].output;
@@ -332,7 +390,7 @@ impl NeuralNetwork {
         }
     }
 
-    pub fn run(&mut self, input_data: InputData) -> OutputData {
+    pub fn run(&mut self, input_data: &InputData) -> OutputData {
         self.run_sample(input_data);
         self.layers.last().unwrap().get_outputs()
     }
