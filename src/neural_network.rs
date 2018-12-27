@@ -191,11 +191,11 @@ impl NeuralNetwork {
         }
     }
 
-    fn train_sample(&mut self, training_sample: TrainingSample) -> Signal {
+    fn train_sample(&mut self, training_sample: TrainingSample) -> OutputData {
         self.run_sample(training_sample.input);
         self.calculate_deltas(training_sample.output);
         self.adjust_weights();
-        0.0
+        self.layers[self.layers.len()-1].get_outputs()
     }
 
     fn run_sample(&mut self, input: InputData) -> OutputData {
