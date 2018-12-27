@@ -295,20 +295,21 @@ impl NeuralNetwork {
 
     fn calculate_deltas_with_backward(&mut self, target: OutputData, backward_function: impl Fn(Signal, Signal)->Signal) {
         for layer_index in (1..self.layers.len()).rev() {
-            let deltas = self.layers[layer_index+1].get_deltas();
             for neuron_index in 0..self.layers[layer_index].neurons.len() {
                 let output = self.layers[layer_index].neurons[neuron_index].output;
                 let mut error = 0.0;
-                if layer_index == self.layers.len() -1 {
+                if layer_index == self.layers.len() - 1 {
                     error = target[neuron_index] - output;
                 } else {
+                    let deltas = self.layers[layer_index+1].get_deltas();
                     for k in 0..deltas.len() {
-                        error += deltas[k] * self.layers[layer_index+1].neurons[neuron_index].weights[k];
+                        error += deltas[k] * self.layers[layer_index+1].neurons[k].weights[neuron_index];
                     }
                 }
                 let neuron = &mut self.layers[layer_index].neurons[neuron_index];
                 neuron.error = error;
                 neuron.delta = backward_function(output, error);
+                println!("Neuron: error={} delta={}", neuron.error, neuron.delta);
             }
         }
     }
