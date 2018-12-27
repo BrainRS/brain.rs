@@ -31,6 +31,7 @@ pub type TrainingData = Vec<TrainingSample>;
 pub struct Neuron {
     bias: Signal,
     weights: Vec<Signal>,
+    changes: Vec<Signal>,
     output: Signal,
     delta: Signal,
     error: Signal,
@@ -43,6 +44,7 @@ impl Neuron {
         Neuron {
             bias: rng.gen(),
             weights: (0..size).map(|_| rng.gen()).collect(),
+            changes: (0..size).map(|_| 0.0).collect(),
             output: 0.0,
             delta: 0.0,
             error: 0.0,
@@ -309,34 +311,28 @@ impl NeuralNetwork {
                 let neuron = &mut self.layers[layer_index].neurons[neuron_index];
                 neuron.error = error;
                 neuron.delta = backward_function(output, error);
-                println!("Neuron: error={} delta={}", neuron.error, neuron.delta);
             }
         }
     }
 
-    fn adjust_weights(&self) {
-        // for (let layer = 1; layer <= this.outputLayer; layer++) {
-        //     let incoming = this.outputs[layer - 1];
-
-        //     for (let node = 0; node < this.sizes[layer]; node++) {
-        //         let delta = this.deltas[layer][node];
-
-        //         for (let k = 0; k < incoming.length; k++) {
-        //             let change = this.changes[layer][node][k];
-
-        //             change = (this.trainOpts.learningRate * delta * incoming[k])
-        //             + (this.trainOpts.momentum * change);
-
-        //             this.changes[layer][node][k] = change;
-        //             this.weights[layer][node][k] += change;
-        //         }
-        //         this.biases[layer][node] += this.trainOpts.learningRate * delta;
-        //     }
-        // }
+    fn adjust_weights(&mut self) {
+        for layer_index in 1..self.layers.len() {
+            let incoming = self.layers[layer_index - 1].get_outputs();
+            for neuron_index in 0..self.layers[layer_index].neurons.len() {
+                let delta = self.layers[layer_index].neurons[neuron_index].delta;
+                for k in 0..incoming.len() {
+                    let mut change = self.layers[layer_index].neurons[neuron_index].changes[k];
+                    change = (self.options.learning_rate * delta * incoming[k]) + (self.options.momentum * change);
+                    self.layers[layer_index].neurons[neuron_index].changes[k] = change;
+                    self.layers[layer_index].neurons[neuron_index].weights[k] += change;
+                }
+                self.layers[layer_index].neurons[neuron_index].delta += self.options.learning_rate * delta;
+            }
+        }
     }
 
     pub fn run(&mut self, input_data: InputData) -> OutputData {
         self.run_sample(input_data);
-        vec!(0.0)
+        self.layers.last().unwrap().get_outputs()
     }
 }

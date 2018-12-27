@@ -5,8 +5,8 @@ use brain::neural_network::{NeuralNetwork, NeuralNetworkOptions, TrainingSample}
 fn main() {
     let net_options = NeuralNetworkOptions {
         input_layer_neuron_count: Some(2),
-        hidden_layers: Some(5),
-        hidden_layers_neuron_count: Some(4),
+        hidden_layers: Some(10),
+        hidden_layers_neuron_count: Some(40),
         output_layer_neuron_count: Some(1),
         ..Default::default()
     };
@@ -19,4 +19,7 @@ fn main() {
     );
     net.train(training_data);
     println!("{:?}", net.run(vec!(0.0, 0.0)));
+    println!("{:?}", net.run(vec!(0.0, 1.0)));
+    println!("{:?}", net.run(vec!(1.0, 0.0)));
+    println!("{:?}", net.run(vec!(1.0, 1.0)));
 }
