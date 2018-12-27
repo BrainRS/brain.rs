@@ -260,12 +260,11 @@ impl NeuralNetwork {
     }
 
     fn calculate_deltas(&self, output: OutputData) {
-        match &self.options.activation[..] {
-            "sigmoid" => self.calculate_deltas_sigmoid(output),
-            "relu" => self.calculate_deltas_relu(output),
-            "leaky-relu" => self.calculate_deltas_leaky_relu(output),
-            "tanh" => self.calculate_deltas_tanh(output),
-            _ => panic!("calculate_deltas called with unknown activation '{}'", self.options.activation),
+        match self.options.activation {
+            NeuralActivation::Sigmoid => self.calculate_deltas_sigmoid(output),
+            NeuralActivation::Relu => self.calculate_deltas_relu(output),
+            NeuralActivation::LeakyRelu => self.calculate_deltas_leaky_relu(output),
+            NeuralActivation::Tanh => self.calculate_deltas_tanh(output),
         }
     }
 
