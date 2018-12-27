@@ -1,14 +1,6 @@
 use rand::prelude::*;
 use std::time::{Duration, SystemTime};
 
-fn clone_vector<T> (source_vector: &Vec<T>) -> Vec<T> 
-    where T:Clone
-{
-    let mut copied_vector = Vec::<T>::new();
-    copied_vector.extend(source_vector.iter().cloned());
-    copied_vector
-}
-
 pub type Signal = f64;
 pub type InputData = Vec<Signal>;
 pub type OutputData = Vec<Signal>;
@@ -91,8 +83,14 @@ impl TrainingStatus {
     pub fn new() -> TrainingStatus {
         TrainingStatus {
             iterations: 0,
-            error: 0.0,
+            error: 10000.0, // Big number so we don't stop training prematurely
         }
+    }
+    pub fn get_iterations(&self) -> u32 {
+        self.iterations
+    }
+    pub fn get_error(&self) -> Signal {
+        self.error
     }
 }
 
@@ -113,9 +111,8 @@ pub struct NeuralNetworkOptions {
     pub leaky_relu_alpha: f64,
     pub binary_thresh: f64,
     pub input_layer_neuron_count: Option<usize>,
-    pub hidden_layers_neuron_count: Option<usize>,
     pub output_layer_neuron_count: Option<usize>,
-    pub hidden_layers: Option<usize>,
+    pub hidden_layers: Option<Vec<usize>>,
     pub activation: NeuralActivation,
     pub iterations: u32,
     pub error_thresh: f64,
@@ -138,7 +135,6 @@ impl Default for NeuralNetworkOptions {
             leaky_relu_alpha: 0.01,
             binary_thresh: 0.5,
             input_layer_neuron_count: None,
-            hidden_layers_neuron_count: None,
             output_layer_neuron_count: None,
             hidden_layers: None,
             activation: NeuralActivation::Sigmoid,
@@ -171,15 +167,12 @@ impl NeuralNetwork {
     }
 
     fn initialize(&mut self) {
-        let hidden_layers = match self.options.hidden_layers {
+        let default_hidden_layers = vec!();
+        let hidden_layers = match &self.options.hidden_layers {
             Some(cnt) => cnt,
-            None => 0,
+            None => &default_hidden_layers,
         };
         let input_layer_neuron_count = match self.options.input_layer_neuron_count {
-            Some(cnt) => cnt,
-            None => 0,
-        };
-        let hidden_layers_neuron_count = match self.options.hidden_layers_neuron_count {
             Some(cnt) => cnt,
             None => 0,
         };
@@ -193,9 +186,9 @@ impl NeuralNetwork {
         // Initialize input_count
         let mut input_count = input_layer_neuron_count;
         // Add the hidden layers
-        for _i in 0..hidden_layers {
-            let hidden_layer = Layer::new(hidden_layers_neuron_count, input_count);
-            input_count = hidden_layers_neuron_count;
+        for hidden_layer_neuron_count in hidden_layers {
+            let hidden_layer = Layer::new(*hidden_layer_neuron_count, input_count);
+            input_count = *hidden_layer_neuron_count;
             self.layers.push(hidden_layer);
         }
         // Lastly add the output layer
@@ -299,7 +292,8 @@ impl NeuralNetwork {
                 neuron.output = input[i];
             }
         }
-        let mut intermediate_input = clone_vector(input);
+        let mut intermediate_input = vec!();
+        intermediate_input.extend(input.iter().cloned());
         for layer_index in 1..self.layers.len() {
             let layer = &mut self.layers[layer_index];
             let neurons = &mut layer.neurons;
@@ -311,7 +305,8 @@ impl NeuralNetwork {
                 }
                 neuron.output = activation_function(sum);
             }
-            intermediate_input = clone_vector(&layer.get_outputs());
+            intermediate_input = vec!();
+            intermediate_input.extend(layer.get_outputs().iter().cloned());
         }
         let mut output = vec!();
         {
