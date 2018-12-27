@@ -12,6 +12,7 @@ fn clone_vector<T> (source_vector: Vec<T>) -> Vec<T> {
 pub type Signal = f64;
 pub type InputData = Vec<Signal>;
 pub type OutputData = Vec<Signal>;
+pub type ErrorData = Vec<Signal>;
 pub struct TrainingSample {
     input: InputData,
     output: OutputData,
@@ -31,6 +32,7 @@ pub struct Neuron {
     bias: Signal,
     weights: Vec<Signal>,
     output: Signal,
+    delta: Signal,
     error: Signal,
 }
 
@@ -42,6 +44,7 @@ impl Neuron {
             bias: rng.gen(),
             weights: (0..size).map(|_| rng.gen()).collect(),
             output: 0.0,
+            delta: 0.0,
             error: 0.0,
         }
     }
@@ -67,6 +70,13 @@ impl Layer {
             outputs.push(neuron.output);
         }
         outputs
+    }
+    fn get_deltas(&self) -> ErrorData {
+        let mut deltas = vec!();
+        for neuron in &self.neurons {
+            deltas.push(neuron.delta);
+        }
+        deltas
     }
 }
 
@@ -255,25 +265,52 @@ impl NeuralNetwork {
         output
     }
 
-    fn calculate_deltas(&self, output: OutputData) {
+    fn calculate_deltas(&mut self, target: OutputData) {
         match self.options.activation {
-            NeuralActivation::Sigmoid => self.calculate_deltas_sigmoid(output),
-            NeuralActivation::Relu => self.calculate_deltas_relu(output),
-            NeuralActivation::LeakyRelu => self.calculate_deltas_leaky_relu(output),
-            NeuralActivation::Tanh => self.calculate_deltas_tanh(output),
+            NeuralActivation::Sigmoid => self.calculate_deltas_with_backward(target, |output: Signal, error: Signal| -> Signal {
+                error * output * (1.0 - output)
+            }),
+            NeuralActivation::Relu => self.calculate_deltas_with_backward(target, |output: Signal, error: Signal| -> Signal {
+                if output > 0.0 {
+                    error
+                } else {
+                    0.0
+                }
+            }),
+            NeuralActivation::LeakyRelu => {
+                let alpha = self.options.leaky_relu_alpha;
+                self.calculate_deltas_with_backward(target, |output: Signal, error: Signal| -> Signal {
+                    if output > 0.0 {
+                        error
+                    } else {
+                        alpha * error
+                    }
+                })
+            },
+            NeuralActivation::Tanh => self.calculate_deltas_with_backward(target, |output: Signal, error: Signal| -> Signal {
+                (1.0 - output * output) * error
+            }),
         }
     }
 
-    fn calculate_deltas_sigmoid(&self, output: OutputData) {
-    }
-
-    fn calculate_deltas_relu(&self, output: OutputData) {
-    }
-
-    fn calculate_deltas_leaky_relu(&self, output: OutputData) {
-    }
-
-    fn calculate_deltas_tanh(&self, output: OutputData) {
+    fn calculate_deltas_with_backward(&mut self, target: OutputData, backward_function: impl Fn(Signal, Signal)->Signal) {
+        for layer_index in (1..self.layers.len()).rev() {
+            let deltas = self.layers[layer_index+1].get_deltas();
+            for neuron_index in 0..self.layers[layer_index].neurons.len() {
+                let output = self.layers[layer_index].neurons[neuron_index].output;
+                let mut error = 0.0;
+                if layer_index == self.layers.len() -1 {
+                    error = target[neuron_index] - output;
+                } else {
+                    for k in 0..deltas.len() {
+                        error += deltas[k] * self.layers[layer_index+1].neurons[neuron_index].weights[k];
+                    }
+                }
+                let neuron = &mut self.layers[layer_index].neurons[neuron_index];
+                neuron.error = error;
+                neuron.delta = backward_function(output, error);
+            }
+        }
     }
 
     fn adjust_weights(&self) {
