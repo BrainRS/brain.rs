@@ -7,6 +7,8 @@ fn main() {
         input_layer_neuron_count: Some(2),
         hidden_layers: Some(vec!(3)),
         output_layer_neuron_count: Some(1),
+        iterations: 20000,
+        log_period: 20001, // never log if this is bigger than iterations
         ..Default::default()
     };
     let mut net = NeuralNetwork::new(net_options);
