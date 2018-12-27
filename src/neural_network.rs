@@ -1,12 +1,12 @@
 use rand::prelude::*;
 use std::time::Duration;
 
-fn clone_vector<T> (old_vector: Vec<T>) -> Vec<T> {
-    let mut new_vector = Vec::<T>::new();
-    for elem in old_vector {
-        new_vector.push(elem);
+fn clone_vector<T> (source_vector: Vec<T>) -> Vec<T> {
+    let mut copied_vector = Vec::<T>::new();
+    for elem in source_vector {
+        copied_vector.push(elem);
     }
-    new_vector
+    copied_vector
 }
 
 pub type Signal = f64;
@@ -75,6 +75,13 @@ pub struct NeuralNetwork {
     layers: Vec<Layer>,
 }
 
+pub enum NeuralActivation {
+    Sigmoid,
+    Relu,
+    LeakyRelu,
+    Tanh,
+}
+
 pub struct NeuralNetworkOptions {
     pub leaky_relu_alpha: f64,
     pub binary_thresh: f64,
@@ -82,7 +89,7 @@ pub struct NeuralNetworkOptions {
     pub hidden_layers_neuron_count: Option<usize>,
     pub output_layer_neuron_count: Option<usize>,
     pub hidden_layers: Option<usize>,
-    pub activation: String,
+    pub activation: NeuralActivation,
     pub iterations: u32,
     pub error_thresh: f64,
     pub log: bool,
@@ -107,7 +114,7 @@ impl Default for NeuralNetworkOptions {
             hidden_layers_neuron_count: None,
             output_layer_neuron_count: None,
             hidden_layers: None,
-            activation: String::from("sigmoid"),
+            activation: NeuralActivation::Sigmoid,
             iterations: 20000,
             error_thresh: 0.005,
             log: false,
@@ -182,18 +189,18 @@ impl NeuralNetwork {
     }
 
     fn run_sample(&mut self, input: InputData) -> OutputData {
-        match &self.options.activation[..] {
-            "sigmoid" => self.run_sample_with_activation(input, |sum: Signal| -> Signal {
+        match self.options.activation {
+            NeuralActivation::Sigmoid => self.run_sample_with_activation(input, |sum: Signal| -> Signal {
                 1.0 / (1.0 + (-sum).exp())
             }),
-            "relu" => self.run_sample_with_activation(input, |sum: Signal| -> Signal {
+            NeuralActivation::Relu => self.run_sample_with_activation(input, |sum: Signal| -> Signal {
                 if sum < 0.0 {
                     0.0
                 } else {
                     sum
                 }
             }),
-            "leaky-relu" => {
+            NeuralActivation::LeakyRelu => {
                 let alpha = self.options.leaky_relu_alpha;
                 self.run_sample_with_activation(input, |sum: Signal| -> Signal {
                     if sum < 0.0 {
@@ -203,10 +210,9 @@ impl NeuralNetwork {
                     }
                 })
             },
-            "tanh" => self.run_sample_with_activation(input, |sum: Signal| -> Signal {
+            NeuralActivation::Tanh => self.run_sample_with_activation(input, |sum: Signal| -> Signal {
                 (-sum).tanh()
             }),
-            _ => panic!("run_sample called with unknown activation '{}'", self.options.activation),
         }
     }
 
