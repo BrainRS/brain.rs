@@ -235,7 +235,7 @@ impl NeuralNetwork {
             }
         }
         status.iterations += 1;
-        if status.iterations % self.options.log_period == 0 {
+        if self.options.log && status.iterations % self.options.log_period == 0 {
             status.error = self.calculate_training_error(training_data);
             println!("iterations: {}, training error: {}", status.iterations, status.error);
         } else {
