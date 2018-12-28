@@ -94,7 +94,7 @@ impl TrainingStatus {
     pub fn new() -> TrainingStatus {
         TrainingStatus {
             iterations: 0,
-            error: 10000.0, // Big number so we don't stop training prematurely
+            error: 1.0, // Big enough number (larger than error_threshold) so we don't stop training prematurely
         }
     }
     pub fn get_iterations(&self) -> u32 {
