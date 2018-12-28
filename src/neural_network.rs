@@ -199,8 +199,8 @@ impl NeuralNetwork {
     pub fn train(&mut self, training_data: &TrainingData) -> TrainingStatus {
         let mut status = TrainingStatus::new();
         let end_time = match self.options.timeout {
-            Some(duration) => SystemTime::now() + duration,
-            None => SystemTime::now() + Duration::from_secs(86400),
+            Some(duration) => Some(SystemTime::now() + duration),
+            None => None,
         };
         while self.training_tick(training_data, &mut status, end_time) {}
         status
@@ -214,9 +214,14 @@ impl NeuralNetwork {
         sum / (training_data.len() as f64)
     }
 
-    fn training_tick(&mut self, training_data: &TrainingData, status: &mut TrainingStatus, end_time: SystemTime) -> bool {
-        if status.iterations >= self.options.iterations || status.error <= self.options.error_thresh || SystemTime::now() >= end_time {
+    fn training_tick(&mut self, training_data: &TrainingData, status: &mut TrainingStatus, end_time: Option<SystemTime>) -> bool {
+        if status.iterations >= self.options.iterations || status.error <= self.options.error_thresh {
             return false;
+        }
+        if let Some(end_time) = end_time {
+            if SystemTime::now() >= end_time {
+                return false;
+            }
         }
         status.iterations += 1;
         if status.iterations % self.options.log_period == 0 {
@@ -238,7 +243,7 @@ impl NeuralNetwork {
         return true;
     }
 
-    pub fn train_samples(&mut self, training_data: &TrainingData) {
+    fn train_samples(&mut self, training_data: &TrainingData) {
         for training_sample in training_data {
             self.train_sample(training_sample);
         }
