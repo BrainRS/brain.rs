@@ -2,9 +2,20 @@ use rand::prelude::*;
 use std::time::{Duration, SystemTime};
 
 pub type Signal = f64;
+
 pub type InputData = Vec<Signal>;
 pub type OutputData = Vec<Signal>;
 pub type ErrorData = Vec<Signal>;
+
+fn mse(errors: &OutputData) -> Signal {
+    // mean squared error
+    let mut sum = 0.0;
+    for i in 0..errors.len() {
+        sum += errors[i] * errors[i];
+    }
+    return sum / (errors.len() as Signal);
+}
+
 pub struct TrainingSample {
     input: InputData,
     output: OutputData,
@@ -206,10 +217,10 @@ impl NeuralNetwork {
         status
     }
 
-    fn calculate_training_error_for_single_output(&mut self, training_data: &TrainingData) -> Signal {
+    fn calculate_training_error(&mut self, training_data: &TrainingData) -> Signal {
         let mut sum = 0.0;
         for training_sample in training_data {
-            sum += self.train_sample(training_sample)[0];
+            sum += self.train_sample(training_sample);
         }
         sum / (training_data.len() as f64)
     }
@@ -225,11 +236,11 @@ impl NeuralNetwork {
         }
         status.iterations += 1;
         if status.iterations % self.options.log_period == 0 {
-            status.error = self.calculate_training_error_for_single_output(training_data);
+            status.error = self.calculate_training_error(training_data);
             println!("iterations: {}, training error: {}", status.iterations, status.error);
         } else {
             if status.iterations % self.error_check_interval == 0 {
-                status.error = self.calculate_training_error_for_single_output(training_data);
+                status.error = self.calculate_training_error(training_data);
             } else {
                 self.train_samples(training_data);
             }
@@ -249,11 +260,11 @@ impl NeuralNetwork {
         }
     }
 
-    fn train_sample(&mut self, training_sample: &TrainingSample) -> OutputData {
+    fn train_sample(&mut self, training_sample: &TrainingSample) -> Signal {
         self.run_sample(&training_sample.input);
         self.calculate_deltas(&training_sample.output);
         self.adjust_weights();
-        self.layers[self.layers.len()-1].get_outputs()
+        mse(&self.layers[self.layers.len()-1].get_outputs())
     }
 
     fn run_sample(&mut self, input: &InputData) -> OutputData {
