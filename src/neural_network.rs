@@ -1,7 +1,6 @@
 use rand::prelude::*;
-use std::time::{Duration, SystemTime};
 use std::collections::HashMap;
-use maplit;
+use std::time::{Duration, SystemTime};
 
 pub type Signal = f64;
 
@@ -25,10 +24,7 @@ pub struct TrainingDataSample {
 }
 impl TrainingDataSample {
     pub fn new(input: InputData, output: OutputData) -> TrainingDataSample {
-        TrainingDataSample {
-            input,
-            output,
-        }
+        TrainingDataSample { input, output }
     }
 }
 
@@ -47,7 +43,11 @@ impl TrainingData {
             output_mapping: None,
         }
     }
-    pub fn new_with_mapping(samples: Vec<TrainingDataSample>, input_mapping: HashMap<usize, String>, output_mapping: HashMap<usize, String>) -> TrainingData {
+    pub fn new_with_mapping(
+        samples: Vec<TrainingDataSample>,
+        input_mapping: HashMap<usize, String>,
+        output_mapping: HashMap<usize, String>,
+    ) -> TrainingData {
         TrainingData {
             samples,
             input_mapping: Some(input_mapping),
@@ -56,8 +56,8 @@ impl TrainingData {
     }
 }
 
-pub type InputObject = HashMap<String,Signal>;
-pub type OutputObject = HashMap<String,Signal>;
+pub type InputObject = HashMap<String, Signal>;
+pub type OutputObject = HashMap<String, Signal>;
 
 #[derive(Debug)]
 pub struct TrainingObjectSample {
@@ -66,10 +66,7 @@ pub struct TrainingObjectSample {
 }
 impl TrainingObjectSample {
     pub fn new(input: InputObject, output: OutputObject) -> TrainingObjectSample {
-        TrainingObjectSample {
-            input,
-            output,
-        }
+        TrainingObjectSample { input, output }
     }
 }
 
@@ -80,20 +77,18 @@ pub struct TrainingObject {
 
 impl TrainingObject {
     pub fn new(samples: Vec<TrainingObjectSample>) -> TrainingObject {
-        TrainingObject {
-            samples,
-        }
+        TrainingObject { samples }
     }
 }
 
 impl From<TrainingObject> for TrainingData {
     fn from(training_object: TrainingObject) -> TrainingData {
-        let mut samples = vec!();
+        let mut samples = vec![];
         let mut input_mapping = HashMap::new();
         let mut output_mapping = HashMap::new();
         let mut mapping_initialized = false;
         for sample in training_object.samples {
-            let mut training_input = vec!();
+            let mut training_input = vec![];
             for (key, value) in sample.input {
                 let index = training_input.len();
                 if !mapping_initialized {
@@ -101,7 +96,7 @@ impl From<TrainingObject> for TrainingData {
                 }
                 training_input.push(value);
             }
-            let mut training_output = vec!();
+            let mut training_output = vec![];
             for (key, value) in sample.output {
                 let index = training_output.len();
                 if !mapping_initialized {
@@ -123,12 +118,12 @@ impl From<TrainingData> for TrainingObject {
         let input_mapping = match training_data.input_mapping {
             Some(mapping) => mapping,
             None => panic!("This TrainingData doesn't contain input mapping information"),
-        }; 
+        };
         let output_mapping = match training_data.output_mapping {
             Some(mapping) => mapping,
             None => panic!("This TrainingData doesn't contain output mapping information"),
         };
-        let mut samples = vec!();
+        let mut samples = vec![];
         for sample in training_data.samples {
             let mut training_input = HashMap::new();
             for (index, value) in sample.input.iter().enumerate() {
@@ -182,23 +177,21 @@ pub struct Layer {
 
 impl Layer {
     fn new(neuron_count: usize, input_count: usize) -> Layer {
-        let mut neurons = vec!();
+        let mut neurons = vec![];
         for _i in 0..neuron_count {
             neurons.push(Neuron::new(input_count));
         }
-        Layer {
-            neurons,
-        }
+        Layer { neurons }
     }
     fn get_outputs(&self) -> OutputData {
-        let mut outputs = vec!();
+        let mut outputs = vec![];
         for neuron in &self.neurons {
             outputs.push(neuron.output);
         }
         outputs
     }
     fn get_deltas(&self) -> ErrorData {
-        let mut deltas = vec!();
+        let mut deltas = vec![];
         for neuron in &self.neurons {
             deltas.push(neuron.delta);
         }
@@ -291,7 +284,7 @@ impl NeuralNetwork {
     pub fn new(options: NeuralNetworkOptions) -> NeuralNetwork {
         let mut neural_network = NeuralNetwork {
             options,
-            layers: vec!(),
+            layers: vec![],
             error_check_interval: 1,
         };
         neural_network.initialize();
@@ -299,7 +292,7 @@ impl NeuralNetwork {
     }
 
     fn initialize(&mut self) {
-        let default_hidden_layers = vec!();
+        let default_hidden_layers = vec![];
         let hidden_layers = match &self.options.hidden_layers {
             Some(cnt) => cnt,
             None => &default_hidden_layers,
@@ -346,8 +339,14 @@ impl NeuralNetwork {
         sum / (training_data.samples.len() as f64)
     }
 
-    fn training_tick(&mut self, training_data: &TrainingData, status: &mut TrainingStatus, end_time: Option<SystemTime>) -> bool {
-        if status.iterations >= self.options.iterations || status.error <= self.options.error_thresh {
+    fn training_tick(
+        &mut self,
+        training_data: &TrainingData,
+        status: &mut TrainingStatus,
+        end_time: Option<SystemTime>,
+    ) -> bool {
+        if status.iterations >= self.options.iterations || status.error <= self.options.error_thresh
+        {
             return false;
         }
         if let Some(end_time) = end_time {
@@ -358,7 +357,10 @@ impl NeuralNetwork {
         status.iterations += 1;
         if self.options.log && status.iterations % self.options.log_period == 0 {
             status.error = self.calculate_training_error(training_data);
-            println!("iterations: {}, training error: {}", status.iterations, status.error);
+            println!(
+                "iterations: {}, training error: {}",
+                status.iterations, status.error
+            );
         } else {
             if status.iterations % self.error_check_interval == 0 {
                 status.error = self.calculate_training_error(training_data);
@@ -385,38 +387,49 @@ impl NeuralNetwork {
         self.run_sample(&training_sample.input);
         self.calculate_deltas(&training_sample.output);
         self.adjust_weights();
-        mse(&self.layers[self.layers.len()-1].get_outputs())
+        mse(&self.layers[self.layers.len() - 1].get_outputs())
     }
 
     fn run_sample(&mut self, input: &InputData) -> OutputData {
         match self.options.activation {
-            NeuralActivation::Sigmoid => self.run_sample_with_activation(input, |sum: Signal| -> Signal {
-                1.0 / (1.0 + (-sum).exp())
-            }),
-            NeuralActivation::Relu => self.run_sample_with_activation(input, |sum: Signal| -> Signal {
-                if sum < 0.0 {
-                    0.0
-                } else {
-                    sum
-                }
-            }),
-            NeuralActivation::LeakyRelu => {
-                let alpha = self.options.leaky_relu_alpha;
-                self.run_sample_with_activation(input, |sum: Signal| -> Signal {
+            NeuralActivation::Sigmoid => self
+                .run_sample_with_activation(input, |sum: Signal| -> Signal {
+                    1.0 / (1.0 + (-sum).exp())
+                }),
+            NeuralActivation::Relu => self.run_sample_with_activation(
+                input,
+                |sum: Signal| -> Signal {
                     if sum < 0.0 {
                         0.0
                     } else {
-                        alpha * sum
+                        sum
                     }
-                })
-            },
-            NeuralActivation::Tanh => self.run_sample_with_activation(input, |sum: Signal| -> Signal {
-                (-sum).tanh()
-            }),
+                },
+            ),
+            NeuralActivation::LeakyRelu => {
+                let alpha = self.options.leaky_relu_alpha;
+                self.run_sample_with_activation(
+                    input,
+                    |sum: Signal| -> Signal {
+                        if sum < 0.0 {
+                            0.0
+                        } else {
+                            alpha * sum
+                        }
+                    },
+                )
+            }
+            NeuralActivation::Tanh => {
+                self.run_sample_with_activation(input, |sum: Signal| -> Signal { (-sum).tanh() })
+            }
         }
     }
 
-    fn run_sample_with_activation(&mut self, input: &InputData, activation_function: impl Fn(Signal)->Signal) -> OutputData {
+    fn run_sample_with_activation(
+        &mut self,
+        input: &InputData,
+        activation_function: impl Fn(Signal) -> Signal,
+    ) -> OutputData {
         let layer_count = self.layers.len();
         {
             let input_layer = &mut self.layers[0];
@@ -429,7 +442,7 @@ impl NeuralNetwork {
                 neuron.output = input[i];
             }
         }
-        let mut intermediate_input = vec!();
+        let mut intermediate_input = vec![];
         intermediate_input.extend(input.iter().cloned());
         for layer_index in 1..self.layers.len() {
             let layer = &mut self.layers[layer_index];
@@ -442,12 +455,12 @@ impl NeuralNetwork {
                 }
                 neuron.output = activation_function(sum);
             }
-            intermediate_input = vec!();
+            intermediate_input = vec![];
             intermediate_input.extend(layer.get_outputs().iter().cloned());
         }
-        let mut output = vec!();
+        let mut output = vec![];
         {
-            let output_layer = &self.layers[layer_count-1];
+            let output_layer = &self.layers[layer_count - 1];
             for i in 0..output_layer.neurons.len() {
                 let neurons = &output_layer.neurons;
                 let neuron = &neurons[i];
@@ -459,33 +472,45 @@ impl NeuralNetwork {
 
     fn calculate_deltas(&mut self, target: &OutputData) {
         match self.options.activation {
-            NeuralActivation::Sigmoid => self.calculate_deltas_with_backward(target, |output: Signal, error: Signal| -> Signal {
-                error * output * (1.0 - output)
-            }),
-            NeuralActivation::Relu => self.calculate_deltas_with_backward(target, |output: Signal, error: Signal| -> Signal {
-                if output > 0.0 {
-                    error
-                } else {
-                    0.0
-                }
-            }),
-            NeuralActivation::LeakyRelu => {
-                let alpha = self.options.leaky_relu_alpha;
-                self.calculate_deltas_with_backward(target, |output: Signal, error: Signal| -> Signal {
+            NeuralActivation::Sigmoid => self.calculate_deltas_with_backward(
+                target,
+                |output: Signal, error: Signal| -> Signal { error * output * (1.0 - output) },
+            ),
+            NeuralActivation::Relu => self.calculate_deltas_with_backward(
+                target,
+                |output: Signal, error: Signal| -> Signal {
                     if output > 0.0 {
                         error
                     } else {
-                        alpha * error
+                        0.0
                     }
-                })
-            },
-            NeuralActivation::Tanh => self.calculate_deltas_with_backward(target, |output: Signal, error: Signal| -> Signal {
-                (1.0 - output * output) * error
-            }),
+                },
+            ),
+            NeuralActivation::LeakyRelu => {
+                let alpha = self.options.leaky_relu_alpha;
+                self.calculate_deltas_with_backward(
+                    target,
+                    |output: Signal, error: Signal| -> Signal {
+                        if output > 0.0 {
+                            error
+                        } else {
+                            alpha * error
+                        }
+                    },
+                )
+            }
+            NeuralActivation::Tanh => self.calculate_deltas_with_backward(
+                target,
+                |output: Signal, error: Signal| -> Signal { (1.0 - output * output) * error },
+            ),
         }
     }
 
-    fn calculate_deltas_with_backward(&mut self, target: &OutputData, backward_function: impl Fn(Signal, Signal)->Signal) {
+    fn calculate_deltas_with_backward(
+        &mut self,
+        target: &OutputData,
+        backward_function: impl Fn(Signal, Signal) -> Signal,
+    ) {
         for layer_index in (1..self.layers.len()).rev() {
             for neuron_index in 0..self.layers[layer_index].neurons.len() {
                 let output = self.layers[layer_index].neurons[neuron_index].output;
@@ -493,9 +518,10 @@ impl NeuralNetwork {
                 if layer_index == self.layers.len() - 1 {
                     error = target[neuron_index] - output;
                 } else {
-                    let deltas = self.layers[layer_index+1].get_deltas();
+                    let deltas = self.layers[layer_index + 1].get_deltas();
                     for k in 0..deltas.len() {
-                        error += deltas[k] * self.layers[layer_index+1].neurons[k].weights[neuron_index];
+                        error += deltas[k]
+                            * self.layers[layer_index + 1].neurons[k].weights[neuron_index];
                     }
                 }
                 let neuron = &mut self.layers[layer_index].neurons[neuron_index];
@@ -513,7 +539,8 @@ impl NeuralNetwork {
                 let delta = neuron.delta;
                 for k in 0..incoming.len() {
                     let mut change = neuron.changes[k];
-                    change = (self.options.learning_rate * delta * incoming[k]) + (self.options.momentum * change);
+                    change = (self.options.learning_rate * delta * incoming[k])
+                        + (self.options.momentum * change);
                     neuron.changes[k] = change;
                     neuron.weights[k] += change;
                 }
