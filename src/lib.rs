@@ -1,3 +1,7 @@
+extern crate rand;
+
+#[macro_use] extern crate maplit;
+
 pub mod cross_validate;
 pub mod likely;
 pub mod lookup;

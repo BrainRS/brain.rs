@@ -1,5 +1,7 @@
 use rand::prelude::*;
 use std::time::{Duration, SystemTime};
+use std::collections::HashMap;
+use maplit;
 
 pub type Signal = f64;
 
@@ -16,20 +18,139 @@ fn mse(errors: &OutputData) -> Signal {
     return sum / (errors.len() as Signal);
 }
 
-pub struct TrainingSample {
+#[derive(Debug)]
+pub struct TrainingDataSample {
     input: InputData,
     output: OutputData,
 }
-impl TrainingSample {
-    pub fn new(input: InputData, output: OutputData) -> TrainingSample {
-        TrainingSample {
+impl TrainingDataSample {
+    pub fn new(input: InputData, output: OutputData) -> TrainingDataSample {
+        TrainingDataSample {
             input,
             output,
         }
     }
 }
 
-pub type TrainingData = Vec<TrainingSample>;
+#[derive(Debug)]
+pub struct TrainingData {
+    samples: Vec<TrainingDataSample>,
+    input_mapping: Option<HashMap<usize, String>>,
+    output_mapping: Option<HashMap<usize, String>>,
+}
+
+impl TrainingData {
+    pub fn new(samples: Vec<TrainingDataSample>) -> TrainingData {
+        TrainingData {
+            samples,
+            input_mapping: None,
+            output_mapping: None,
+        }
+    }
+    pub fn new_with_mapping(samples: Vec<TrainingDataSample>, input_mapping: HashMap<usize, String>, output_mapping: HashMap<usize, String>) -> TrainingData {
+        TrainingData {
+            samples,
+            input_mapping: Some(input_mapping),
+            output_mapping: Some(output_mapping),
+        }
+    }
+}
+
+pub type InputObject = HashMap<String,Signal>;
+pub type OutputObject = HashMap<String,Signal>;
+
+#[derive(Debug)]
+pub struct TrainingObjectSample {
+    input: InputObject,
+    output: OutputObject,
+}
+impl TrainingObjectSample {
+    pub fn new(input: InputObject, output: OutputObject) -> TrainingObjectSample {
+        TrainingObjectSample {
+            input,
+            output,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct TrainingObject {
+    samples: Vec<TrainingObjectSample>,
+}
+
+impl TrainingObject {
+    pub fn new(samples: Vec<TrainingObjectSample>) -> TrainingObject {
+        TrainingObject {
+            samples,
+        }
+    }
+}
+
+impl From<TrainingObject> for TrainingData {
+    fn from(training_object: TrainingObject) -> TrainingData {
+        let mut samples = vec!();
+        let mut input_mapping = HashMap::new();
+        let mut output_mapping = HashMap::new();
+        let mut mapping_initialized = false;
+        for sample in training_object.samples {
+            let mut training_input = vec!();
+            for (key, value) in sample.input {
+                let index = training_input.len();
+                if !mapping_initialized {
+                    input_mapping.insert(index, key);
+                }
+                training_input.push(value);
+            }
+            let mut training_output = vec!();
+            for (key, value) in sample.output {
+                let index = training_output.len();
+                if !mapping_initialized {
+                    output_mapping.insert(index, key);
+                }
+                training_output.push(value);
+            }
+            if !mapping_initialized {
+                mapping_initialized = true;
+            }
+            samples.push(TrainingDataSample::new(training_input, training_output));
+        }
+        TrainingData::new_with_mapping(samples, input_mapping, output_mapping)
+    }
+}
+
+impl From<TrainingData> for TrainingObject {
+    fn from(training_data: TrainingData) -> TrainingObject {
+        let input_mapping = match training_data.input_mapping {
+            Some(mapping) => mapping,
+            None => panic!("This TrainingData doesn't contain input mapping information"),
+        }; 
+        let output_mapping = match training_data.output_mapping {
+            Some(mapping) => mapping,
+            None => panic!("This TrainingData doesn't contain output mapping information"),
+        };
+        let mut samples = vec!();
+        for sample in training_data.samples {
+            let mut training_input = HashMap::new();
+            for (index, value) in sample.input.iter().enumerate() {
+                let index_key = match input_mapping.get(&index) {
+                    Some(index) => index,
+                    None => panic!("This TrainingData doesn't contain input mapping information for index '{}'", index),
+                };
+                training_input.insert(index_key.clone(), *value);
+            }
+            let mut training_output = HashMap::new();
+            for (index, value) in sample.output.iter().enumerate() {
+                let index_key = match output_mapping.get(&index) {
+                    Some(index) => index,
+                    None => panic!("This TrainingData doesn't contain output mapping information for index '{}'", index),
+                };
+                training_output.insert(index_key.clone(), *value);
+            }
+            samples.push(TrainingObjectSample::new(training_input, training_output));
+        }
+        TrainingObject::new(samples)
+    }
+}
 
 pub struct Neuron {
     bias: Signal,
@@ -219,10 +340,10 @@ impl NeuralNetwork {
 
     fn calculate_training_error(&mut self, training_data: &TrainingData) -> Signal {
         let mut sum = 0.0;
-        for training_sample in training_data {
+        for training_sample in &training_data.samples {
             sum += self.train_sample(training_sample);
         }
-        sum / (training_data.len() as f64)
+        sum / (training_data.samples.len() as f64)
     }
 
     fn training_tick(&mut self, training_data: &TrainingData, status: &mut TrainingStatus, end_time: Option<SystemTime>) -> bool {
@@ -255,12 +376,12 @@ impl NeuralNetwork {
     }
 
     fn train_samples(&mut self, training_data: &TrainingData) {
-        for training_sample in training_data {
+        for training_sample in &training_data.samples {
             self.train_sample(training_sample);
         }
     }
 
-    fn train_sample(&mut self, training_sample: &TrainingSample) -> Signal {
+    fn train_sample(&mut self, training_sample: &TrainingDataSample) -> Signal {
         self.run_sample(&training_sample.input);
         self.calculate_deltas(&training_sample.output);
         self.adjust_weights();
