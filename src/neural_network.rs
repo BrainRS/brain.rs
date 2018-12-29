@@ -233,25 +233,25 @@ pub enum NeuralActivation {
 }
 
 pub struct NeuralNetworkOptions {
-    pub leaky_relu_alpha: f64,
-    pub binary_thresh: f64,
+    pub leaky_relu_alpha: Signal,
+    pub binary_thresh: Signal,
     pub input_layer_neuron_count: Option<usize>,
     pub output_layer_neuron_count: Option<usize>,
     pub hidden_layers: Option<Vec<usize>>,
     pub activation: NeuralActivation,
     pub iterations: u32,
-    pub error_thresh: f64,
+    pub error_thresh: Signal,
     pub log: bool,
     pub log_period: u32,
-    pub learning_rate: f64,
-    pub momentum: f64,
+    pub learning_rate: Signal,
+    pub momentum: Signal,
     pub callback: Option<Box<Fn(&TrainingStatus)>>,
     pub callback_period: u32,
     pub timeout: Option<Duration>,
     pub praxis: Option<String>,
-    pub beta1: f64,
-    pub beta2: f64,
-    pub epsilon: f64,
+    pub beta1: Signal,
+    pub beta2: Signal,
+    pub epsilon: Signal,
 }
 
 impl Default for NeuralNetworkOptions {
@@ -336,7 +336,7 @@ impl NeuralNetwork {
         for training_sample in &training_data.samples {
             sum += self.train_sample(training_sample);
         }
-        sum / (training_data.samples.len() as f64)
+        sum / (training_data.samples.len() as Signal)
     }
 
     fn training_tick(
