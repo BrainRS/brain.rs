@@ -1,5 +1,3 @@
-extern crate rand;
-
 pub mod cross_validate;
 pub mod likely;
 pub mod lookup;
