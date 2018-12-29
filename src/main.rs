@@ -13,10 +13,10 @@ fn main() {
     };
     let mut net = NeuralNetwork::new(net_options);
     let training_object = TrainingObject::new(vec!(
-        TrainingObjectSample::new(hashmap!("high".to_string() => 0.0, "low".to_string() => 0.0), hashmap!("muscle".to_string() => 0.0)),
-        TrainingObjectSample::new(hashmap!("high".to_string() => 0.0, "low".to_string() => 1.0), hashmap!("muscle".to_string() => 1.0)),
-        TrainingObjectSample::new(hashmap!("high".to_string() => 1.0, "low".to_string() => 0.0), hashmap!("muscle".to_string() => 1.0)),
-        TrainingObjectSample::new(hashmap!("high".to_string() => 1.0, "low".to_string() => 1.0), hashmap!("muscle".to_string() => 0.0)),
+        TrainingObjectSample::new(hashmap!("high" => 0.0, "low" => 0.0), hashmap!("muscle" => 0.0)),
+        TrainingObjectSample::new(hashmap!("high" => 0.0, "low" => 1.0), hashmap!("muscle" => 1.0)),
+        TrainingObjectSample::new(hashmap!("high" => 1.0, "low" => 0.0), hashmap!("muscle" => 1.0)),
+        TrainingObjectSample::new(hashmap!("high" => 1.0, "low" => 1.0), hashmap!("muscle" => 0.0)),
     ));
     let training_data = TrainingData::from(training_object);
     println!("{:?}", training_data);

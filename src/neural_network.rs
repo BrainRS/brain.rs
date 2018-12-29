@@ -31,8 +31,8 @@ impl TrainingDataSample {
 #[derive(Debug)]
 pub struct TrainingData {
     samples: Vec<TrainingDataSample>,
-    input_mapping: Option<HashMap<usize, String>>,
-    output_mapping: Option<HashMap<usize, String>>,
+    input_mapping: Option<HashMap<usize, &'static str>>,
+    output_mapping: Option<HashMap<usize, &'static str>>,
 }
 
 impl TrainingData {
@@ -45,8 +45,8 @@ impl TrainingData {
     }
     pub fn new_with_mapping(
         samples: Vec<TrainingDataSample>,
-        input_mapping: HashMap<usize, String>,
-        output_mapping: HashMap<usize, String>,
+        input_mapping: HashMap<usize, &'static str>,
+        output_mapping: HashMap<usize, &'static str>,
     ) -> TrainingData {
         TrainingData {
             samples,
@@ -56,8 +56,8 @@ impl TrainingData {
     }
 }
 
-pub type InputObject = HashMap<String, Signal>;
-pub type OutputObject = HashMap<String, Signal>;
+pub type InputObject = HashMap<&'static str, Signal>;
+pub type OutputObject = HashMap<&'static str, Signal>;
 
 #[derive(Debug)]
 pub struct TrainingObjectSample {
